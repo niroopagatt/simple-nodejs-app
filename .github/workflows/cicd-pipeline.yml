@@ -1,12 +1,13 @@
-# Name for your workflow, which will show up in the GitHub Actions tab
+HEAD
+Name for your workflow, which will show up in the GitHub Actions tab
 
 name: Node.js CI/CD Pipeline
 
  
 
-# --- TRIGGERS ---
+TRIGGERS
 
-# This section defines when the workflow will run.
+This section defines when the workflow will run.
 
 on:
 
@@ -32,9 +33,9 @@ on:
 
  
 
-# --- JOBS ---
+JOBS
 
-# A workflow run is made up of one or more jobs.
+A workflow run is made up of one or more jobs.
 
 jobs:
 
@@ -194,4 +195,104 @@ jobs:
 
         echo "Deployment would happen here using secrets."
 
+        echo "Using dummy secret: ${{ secrets.DUMMY_SECRET }}"
+
+Name for your workflow, which will show up in the GitHub Actions tab
+name: Node.js CI/CD Pipeline
+
+TRIGGERS
+This section defines when the workflow will run.
+on:
+  push:
+    branches: [ main ] # Runs when you push code to the main branch
+  pull_request:
+    branches: [ main ] # Runs when a pull request is made to the main branch
+  workflow_dispatch: # Allows you to run this workflow manually from the Actions tab
+    inputs:
+      version:
+        description: 'The semantic version to deploy (e.g., 1.0.0)'
+        required: true
+        default: '1.0.0'
+
+JOBS
+A workflow run is made up of one or more jobs.
+jobs:
+  test:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Run tests
+      run: npm test
+
+  build:
+    name: Build Application
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      build_path: ${{ steps.create_artifact.outputs.build_path }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Create build artifact and define output path
+      id: create_artifact
+      run: |
+        mkdir -p build
+        echo "Build files would go here" > build/index.html
+        echo "build_path=build" >> $GITHUB_OUTPUT
+
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: my-build
+        path: ${{ steps.create_artifact.outputs.build_path }}
+
+  deploy:
+    name: Deploy to Production
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: 'https://your-deployment-url.com'
+
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+
+    steps:
+    - name: Download build artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: my-build
+        path: ./build
+
+    - name: Display build content
+      run: ls -R ./build
+
+    - name: Deploy to production
+      run: |
+        echo "Deploying version ${{ github.event.inputs.version }}..."
+        echo "Deployment would happen here using secrets."
         echo "Using dummy secret: ${{ secrets.DUMMY_SECRET }}"
